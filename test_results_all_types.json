@@ -1,0 +1,43 @@
+{
+  "FLOAT": {
+    "float64": "supported",
+    "Float64 (nullable)": "not_supported",
+    "float32": "supported"
+  },
+  "INTEGER": {
+    "int64": "N/A (\u043d\u0435 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 NaN)",
+    "Int64 (nullable)": "not_supported",
+    "Int32 (nullable)": "not_supported"
+  },
+  "DATETIME": {
+    "datetime64[ns]": "not_supported",
+    "datetime64[ns, tz]": "not_supported",
+    "timedelta64[ns]": "not_supported"
+  },
+  "STRING/OBJECT": {
+    "object": "not_supported",
+    "string": "not_supported"
+  },
+  "BOOLEAN": {
+    "boolean (nullable)": "not_supported",
+    "bool": "N/A (\u043d\u0435 \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442 NA)"
+  },
+  "DECIMAL": {
+    "Decimal": "not_supported"
+  },
+  "CATEGORY": {
+    "Categorical": "not_supported"
+  },
+  "PERIOD": {
+    "Period": "not_supported"
+  },
+  "INTERVAL": {
+    "Interval": "not_supported"
+  },
+  "PYARROW": {
+    "int64": "not_supported",
+    "float64": "not_supported",
+    "string": "not_supported",
+    "timestamp": "not_supported"
+  }
+}
