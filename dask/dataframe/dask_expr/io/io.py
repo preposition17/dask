@@ -478,11 +478,27 @@ class FromPandas(PartitionsFiltered, BlockwiseIO):
                 locations = [0] * (npartitions + 1)
                 divisions = (None,) * len(locations)
             elif sort or self.frame._data.index.is_monotonic_increasing:
-                divisions, locations = sorted_division_locations(
-                    data.index,
-                    npartitions=npartitions,
-                    chunksize=self.operand("chunksize"),
-                )
+                # Check if index contains nulls and is string/object type
+                import pandas as pd
+                has_nulls = data.index.isna().any()
+                is_string_like = pd.api.types.is_object_dtype(data.index)
+
+                # For string/object types with nulls, use unknown divisions
+                # because sorting and bisect don't work with None
+                if has_nulls and is_string_like:
+                    if npartitions is None:
+                        chunksize = self.operand("chunksize")
+                    else:
+                        chunksize = int(math.ceil(nrows / npartitions))
+                    locations = list(range(0, nrows, chunksize)) + [len(data)]
+                    divisions = (None,) * len(locations)
+                else:
+                    # For datetime and other sortable types with nulls, this works
+                    divisions, locations = sorted_division_locations(
+                        data.index,
+                        npartitions=npartitions,
+                        chunksize=self.operand("chunksize"),
+                    )
             else:
                 if npartitions is None:
                     chunksize = self.operand("chunksize")

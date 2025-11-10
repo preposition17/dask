@@ -4893,11 +4893,23 @@ def from_pandas(data, npartitions=None, sort=True, chunksize=None):
     if not has_parallel_type(data):
         raise TypeError("Input must be a pandas DataFrame or Series.")
 
+    # Check for unsupported index types with nulls
     if data.index.isna().any() and not _is_any_real_numeric_dtype(data.index):
-        raise NotImplementedError(
-            "Index in passed data is non-numeric and contains nulls, which Dask does not entirely support.\n"
-            "Consider passing `data.loc[~data.isna()]` instead."
+        from pandas.api.types import is_datetime64_any_dtype, is_timedelta64_dtype, is_object_dtype, is_string_dtype
+
+        # Allow datetime, timedelta, string, and object types with nulls
+        is_supported_type = (
+            is_datetime64_any_dtype(data.index)
+            or is_timedelta64_dtype(data.index)
+            or is_string_dtype(data.index)
+            or is_object_dtype(data.index)
         )
+
+        if not is_supported_type:
+            raise NotImplementedError(
+                "Index in passed data is non-numeric and contains nulls, which Dask does not entirely support.\n"
+                "Consider passing `data.loc[~data.isna()]` instead."
+            )
 
     if npartitions is not None and not isinstance(npartitions, int):
         raise TypeError(

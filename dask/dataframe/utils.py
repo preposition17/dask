@@ -693,20 +693,75 @@ def valid_divisions(divisions):
     if isinstance(divisions, tuple):
         divisions = list(divisions)
 
-    if pd.isnull(divisions).any():
-        return False
+    # Check if there are nulls
+    has_nulls = pd.isnull(divisions).any()
 
+    if has_nulls:
+        # Allow nulls for datetime, timedelta, string, and object types
+        from pandas.api.types import is_datetime64_any_dtype, is_timedelta64_dtype
+
+        # Find first non-null element to check type
+        first_non_null = next((d for d in divisions if pd.notna(d)), None)
+        if first_non_null is None:
+            return False  # All null divisions
+
+        # Check if it's a supported type with nulls
+        is_datetime_like = (
+            isinstance(first_non_null, (pd.Timestamp, pd.Timedelta))
+            or is_datetime64_any_dtype(type(first_non_null))
+            or is_timedelta64_dtype(type(first_non_null))
+        )
+        is_string_like = isinstance(first_non_null, str)
+
+        if not (is_datetime_like or is_string_like):
+            return False
+
+    # NA-aware comparison for divisions
     for i, x in enumerate(divisions[:-2]):
-        if x >= divisions[i + 1]:
-            return False
-        if isinstance(x, Number) and math.isnan(x):
-            return False
+        y = divisions[i + 1]
 
+        # Only compare non-null values
+        if pd.notna(x) and pd.notna(y):
+            try:
+                result = x >= y
+                # Handle pd.NA result from nullable types
+                if hasattr(pd, 'NA') and isinstance(result, type(pd.NA)):
+                    return False
+                if result:
+                    return False
+            except (TypeError, ValueError):
+                return False
+
+        # Check for NaN in numeric types (excluding datetime/timedelta)
+        if isinstance(x, Number) and not isinstance(x, (bool, pd.Timestamp, pd.Timedelta)):
+            try:
+                if math.isnan(x):
+                    return False
+            except (TypeError, ValueError):
+                pass
+
+    # Check last two elements
     for x in divisions[-2:]:
-        if isinstance(x, Number) and math.isnan(x):
+        if isinstance(x, Number) and not isinstance(x, (bool, pd.Timestamp, pd.Timedelta)):
+            try:
+                if math.isnan(x):
+                    return False
+            except (TypeError, ValueError):
+                pass
+
+    # Final comparison
+    a, b = divisions[-2], divisions[-1]
+    if pd.notna(a) and pd.notna(b):
+        try:
+            result = a <= b
+            # Handle pd.NA result
+            if hasattr(pd, 'NA') and isinstance(result, type(pd.NA)):
+                return False
+            return bool(result)
+        except (TypeError, ValueError):
             return False
 
-    return divisions[-2] <= divisions[-1]
+    return True
 
 
 def drop_by_shallow_copy(df, columns, errors="raise"):

@@ -283,12 +283,26 @@ def sorted_division_locations(seq, npartitions=None, chunksize=None):
     # any divisions we extract from seq are plain Python scalars.
     seq = tolist(seq)
     # we use bisect later, so we need sorted.
-    seq_unique = sorted(set(seq))
-    duplicates = len(seq_unique) < len(seq)
+    # Handle NaT/None values - filter them out for sorting/bisect operations
+    import pandas as pd
+    seq_no_null = [x for x in seq if pd.notna(x)]
+
+    # If we have null values, work only with non-null for divisions
+    if len(seq_no_null) < len(seq):
+        # Has null values - use seq_no_null for divisions
+        seq_unique = sorted(set(seq_no_null))
+        duplicates = len(seq_unique) < len(seq_no_null)
+    else:
+        # No null values - use original logic
+        seq_unique = sorted(set(seq))
+        duplicates = len(seq_unique) < len(seq)
+
     enforce_exact = False
 
     if duplicates:
-        offsets = [bisect.bisect_left(seq, x) for x in seq_unique]
+        # Use only non-null seq for bisect operations
+        offsets = [bisect.bisect_left(seq_no_null if len(seq_no_null) < len(seq) else seq, x)
+                   for x in seq_unique]
         enforce_exact = npartitions and len(offsets) >= npartitions
     else:
         offsets = seq_unique = None
