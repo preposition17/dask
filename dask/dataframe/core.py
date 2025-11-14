@@ -254,15 +254,54 @@ def _cov_corr_agg(data, cols, min_periods=2, corr=False, scalar=False, like_df=N
     )
 
 
+def _na_safe_sort_key(x):
+    """Sort key that puts NA/NaT/None at the end"""
+    import pandas as pd
+    if pd.isna(x):
+        return (1, 0)  # NA sorts last
+    return (0, x)
+
+
+def _na_equals(a, b):
+    """Check equality accounting for NA values"""
+    import pandas as pd
+    if pd.isna(a) and pd.isna(b):
+        return True
+    if pd.isna(a) or pd.isna(b):
+        return False
+    try:
+        result = a == b
+        # Handle pd.NA propagation from nullable types
+        if hasattr(pd, 'NA') and isinstance(result, type(pd.NA)):
+            return False
+        return bool(result)
+    except (TypeError, ValueError):
+        return False
+
+
 def check_divisions(divisions):
     if not isinstance(divisions, (list, tuple)):
         raise ValueError("New division must be list or tuple")
     divisions = list(divisions)
     if len(divisions) == 0:
         raise ValueError("New division must not be empty")
-    if divisions != sorted(divisions):
-        raise ValueError("New division must be sorted")
-    if len(divisions[:-1]) != len(list(unique(divisions[:-1]))):
+
+    # NA-aware sorting check
+    try:
+        sorted_divisions = sorted(divisions, key=_na_safe_sort_key)
+    except TypeError:
+        # Can't sort - likely incompatible types
+        raise ValueError("Divisions contain incompatible types")
+
+    # NA-aware equality check
+    for orig, sorted_val in zip(divisions, sorted_divisions):
+        if not _na_equals(orig, sorted_val):
+            raise ValueError("New division must be sorted")
+
+    # Uniqueness check (excluding last element, and excluding NA values)
+    import pandas as pd
+    non_null_divs = [d for d in divisions[:-1] if pd.notna(d)]
+    if len(non_null_divs) != len(set(non_null_divs)):
         msg = "New division must be unique, except for the last element"
         raise ValueError(msg)
 
